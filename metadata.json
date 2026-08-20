@@ -1,0 +1,6 @@
+{
+  "name": "Lisboa Centro Automotivo",
+  "description": "Site profissional e responsivo para o Lisboa Centro Automotivo em Samambaia Sul - DF, com agendamento de serviços, solicitação de orçamentos e contato via WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

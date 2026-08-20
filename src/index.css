@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    border-color: rgba(255, 255, 255, 0.07);
+  }
+}
+
+.font-heading {
+  font-family: 'Chakra Petch', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0A0A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #dc2626;
+}
+
+/* Elegant Dark Glassmorphism & Metallic Effects */
+.glass-panel {
+  background: rgba(21, 21, 21, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-panel-glow {
+  background: linear-gradient(135deg, rgba(26, 26, 26, 0.9) 0%, rgba(15, 15, 15, 0.95) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  box-shadow: 0 10px 35px -10px rgba(220, 38, 38, 0.2);
+}
+
+.metal-gradient {
+  background: linear-gradient(180deg, #262626 0%, #141414 100%);
+}
+
+.carbon-pattern {
+  background-color: #0A0A0A;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+@keyframes pulseSlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 3s ease-in-out infinite;
+}
+
