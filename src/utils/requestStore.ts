@@ -1,4 +1,4 @@
-import { CustomerRequestRecord } from '../types';
+import { CustomerRequestRecord, CustomerRequestStatus } from '../types';
 
 const STORAGE_KEY = 'lisboa-customer-requests-v1';
 
@@ -14,7 +14,8 @@ const readLocal = (): CustomerRequestRecord[] => {
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -25,6 +26,7 @@ const writeLocal = (records: CustomerRequestRecord[]) => {
 
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 100)));
+    window.dispatchEvent(new CustomEvent('lisboa:requests-updated'));
   } catch {
     // Local persistence is a convenience fallback only.
   }
@@ -46,14 +48,28 @@ export const createCustomerRequest = (
 };
 
 export const markCustomerRequestAsSent = (protocol: string) => {
+  updateCustomerRequestStatus(protocol, 'sent-whatsapp');
+};
+
+export const updateCustomerRequestStatus = (
+  protocol: string,
+  status: CustomerRequestStatus,
+) => {
   const records = readLocal();
   writeLocal(
     records.map((record) =>
-      record.protocol === protocol
-        ? { ...record, status: 'sent-whatsapp' as const }
-        : record,
+      record.protocol === protocol ? { ...record, status } : record,
     ),
   );
 };
 
+export const deleteCustomerRequest = (protocol: string) => {
+  writeLocal(readLocal().filter((record) => record.protocol !== protocol));
+};
+
+export const clearCustomerRequests = () => writeLocal([]);
+
 export const getCustomerRequests = () => readLocal();
+
+export const exportCustomerRequestsAsJson = () =>
+  JSON.stringify(readLocal(), null, 2);
