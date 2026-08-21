@@ -95,6 +95,35 @@ export interface CustomerRequestRecord {
   notes?: string;
 }
 
+export type ServiceOrderStatus = 'draft' | 'approved' | 'in-progress' | 'waiting-parts' | 'finished' | 'delivered' | 'cancelled';
+
+export interface ServiceOrderItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface ServiceOrderRecord {
+  number: string;
+  createdAt: string;
+  updatedAt: string;
+  status: ServiceOrderStatus;
+  customerName: string;
+  phone: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  vehicleYear?: string;
+  plate?: string;
+  mileage?: string;
+  complaint?: string;
+  diagnosis?: string;
+  items: ServiceOrderItem[];
+  laborValue: number;
+  discount: number;
+  notes?: string;
+}
+
 export interface CompanyInfo {
   name: string;
   slogan: string;
