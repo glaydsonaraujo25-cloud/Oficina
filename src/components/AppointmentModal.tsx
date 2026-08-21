@@ -6,17 +6,19 @@ import {
   CheckCircle2,
   MessageCircle,
   AlertCircle,
+  Copy,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { servicesData, carBrandsList, companyInfo } from '../data/mockData';
+import { CustomerRequestRecord } from '../types';
+import { formatPhone, getToday, isPastDate, isValidPhone } from '../utils/validation';
+import { createCustomerRequest, markCustomerRequestAsSent } from '../utils/requestStore';
 
 interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialServiceId?: string;
 }
-
-const getToday = () => new Date().toISOString().split('T')[0];
 
 export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   isOpen,
@@ -31,44 +33,33 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   const [date, setDate] = useState('');
   const [period, setPeriod] = useState<'manha' | 'tarde'>('manha');
   const [notes, setNotes] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [requestRecord, setRequestRecord] = useState<CustomerRequestRecord | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setServiceId(initialServiceId);
-      setSubmitted(false);
-      setErrorMsg('');
-    }
+    if (!isOpen) return;
+    setServiceId(initialServiceId);
+    setRequestRecord(null);
+    setErrorMsg('');
+    setCopied(false);
   }, [isOpen, initialServiceId]);
 
   if (!isOpen) return null;
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 11) value = value.slice(0, 11);
-    if (value.length > 6) {
-      value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
-    } else if (value.length > 2) {
-      value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
-    }
-    setPhone(value);
-  };
 
   const getServiceName = (id: string) => {
     const service = servicesData.find((item) => item.id === id);
     return service ? service.title : id;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
 
-    const phoneDigits = phone.replace(/\D/g, '');
     if (name.trim().length < 3) {
       setErrorMsg('Informe um nome válido para continuar.');
       return;
     }
-    if (phoneDigits.length < 10) {
+    if (!isValidPhone(phone)) {
       setErrorMsg('Informe um WhatsApp válido com DDD.');
       return;
     }
@@ -76,30 +67,56 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
       setErrorMsg('Informe o modelo do veículo.');
       return;
     }
-    if (date && date < getToday()) {
+    if (isPastDate(date)) {
       setErrorMsg('Escolha uma data de hoje em diante.');
       return;
     }
 
+    const record = createCustomerRequest({
+      type: 'appointment',
+      name: name.trim(),
+      phone,
+      vehicleBrand: brand,
+      vehicleModel: model.trim(),
+      serviceId,
+      serviceName: getServiceName(serviceId),
+      preferredDate: date,
+      preferredPeriod: period,
+      notes: notes.trim(),
+    });
+
     setErrorMsg('');
-    setSubmitted(true);
+    setRequestRecord(record);
 
     try {
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.5 } });
     } catch {
-      // Confetti is decorative only.
+      // Decorative only.
     }
   };
 
   const handleDirectWhatsApp = () => {
-    const serviceName = getServiceName(serviceId);
-    const text = `*SOLICITAÇÃO DE AGENDAMENTO - LISBOA CENTRO AUTOMOTIVO* 🚗\n👤 *Nome:* ${name}\n📱 *WhatsApp:* ${phone}\n🚘 *Veículo:* ${brand || 'Marca não informada'} ${model}\n🛠️ *Serviço:* ${serviceName}\n📅 *Data desejada:* ${date || 'A combinar'} (${period.toUpperCase()})\n📝 *Observações:* ${notes || 'Sem observações.'}\n\n_A solicitação será confirmada pela equipe da oficina._`;
+    if (!requestRecord) return;
 
+    const text = `*SOLICITAÇÃO DE AGENDAMENTO - LISBOA CENTRO AUTOMOTIVO* 🚗\n\n🔖 *Protocolo:* ${requestRecord.protocol}\n👤 *Nome:* ${name}\n📱 *WhatsApp:* ${phone}\n🚘 *Veículo:* ${brand || 'Marca não informada'} ${model}\n🛠️ *Serviço:* ${getServiceName(serviceId)}\n📅 *Data desejada:* ${date || 'A combinar'} (${period === 'manha' ? 'MANHÃ' : 'TARDE'})\n📝 *Observações:* ${notes || 'Sem observações.'}\n\n_A solicitação será confirmada pela equipe da oficina._`;
+
+    markCustomerRequestAsSent(requestRecord.protocol);
     window.open(
       `https://wa.me/${companyInfo.whatsapp}?text=${encodeURIComponent(text)}`,
       '_blank',
       'noopener,noreferrer',
     );
+  };
+
+  const handleCopyProtocol = async () => {
+    if (!requestRecord) return;
+    try {
+      await navigator.clipboard.writeText(requestRecord.protocol);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
   };
 
   return (
@@ -112,7 +129,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     >
       <div
         className="relative w-full max-w-lg rounded-3xl bg-[#121212] border border-red-500/30 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="p-5 sm:p-6 bg-[#0A0A0A] border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -124,85 +141,77 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
               <p className="text-xs text-zinc-400">Lisboa Centro Automotivo • Samambaia Sul</p>
             </div>
           </div>
-
           <button onClick={onClose} aria-label="Fechar agendamento" className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {!submitted ? (
+        {!requestRecord ? (
           <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
             {errorMsg && (
-              <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-200 text-xs">
+              <div role="alert" className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-200 text-xs">
                 <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-zinc-300">Seu Nome Completo *</label>
-              <input type="text" required minLength={3} placeholder="Ex: Carlos Silva" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500" />
-            </div>
+            <label className="block space-y-1 text-xs font-semibold text-zinc-300">Seu Nome Completo *
+              <input type="text" required minLength={3} autoComplete="name" placeholder="Ex: Carlos Silva" value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full px-3.5 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500" />
+            </label>
 
             <div className="grid sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">WhatsApp *</label>
-                <div className="relative">
+              <label className="block space-y-1 text-xs font-semibold text-zinc-300">WhatsApp *
+                <div className="relative mt-1">
                   <Phone className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input type="tel" required inputMode="tel" placeholder="(61) 99999-9999" value={phone} onChange={handlePhoneChange} className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500" />
+                  <input type="tel" required inputMode="tel" autoComplete="tel" placeholder="(61) 99999-9999" value={phone} onChange={(event) => setPhone(formatPhone(event.target.value))} className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500" />
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Marca do Carro</label>
-                <select value={brand} onChange={(e) => setBrand(e.target.value)} className="w-full px-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white focus:outline-none focus:border-red-500">
+              </label>
+              <label className="block space-y-1 text-xs font-semibold text-zinc-300">Marca do Carro
+                <select value={brand} onChange={(event) => setBrand(event.target.value)} className="mt-1 w-full px-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white focus:outline-none focus:border-red-500">
                   <option value="">Selecione...</option>
-                  {carBrandsList.map((item) => <option key={item} value={item} className="bg-[#121212] text-white">{item}</option>)}
+                  {carBrandsList.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
-              </div>
+              </label>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-zinc-300">Modelo do Veículo *</label>
-              <input type="text" required minLength={2} placeholder="Ex: HB20 1.6, Corolla, Gol..." value={model} onChange={(e) => setModel(e.target.value)} className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500" />
-            </div>
+            <label className="block space-y-1 text-xs font-semibold text-zinc-300">Modelo do Veículo *
+              <input type="text" required minLength={2} placeholder="Ex: HB20 1.6, Corolla, Gol..." value={model} onChange={(event) => setModel(event.target.value)} className="mt-1 w-full px-3.5 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500" />
+            </label>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-zinc-300">Serviço Pretendido</label>
-              <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className="w-full px-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white focus:outline-none focus:border-red-500">
-                {servicesData.map((service) => <option key={service.id} value={service.id} className="bg-[#121212] text-white">{service.title}</option>)}
+            <label className="block space-y-1 text-xs font-semibold text-zinc-300">Serviço Pretendido
+              <select value={serviceId} onChange={(event) => setServiceId(event.target.value)} className="mt-1 w-full px-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white focus:outline-none focus:border-red-500">
+                {servicesData.map((service) => <option key={service.id} value={service.id}>{service.title}</option>)}
               </select>
-            </div>
+            </label>
 
             <div className="grid sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Data Preferencial</label>
-                <input type="date" min={getToday()} value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white focus:outline-none focus:border-red-500" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Período</label>
-                <select value={period} onChange={(e) => setPeriod(e.target.value as 'manha' | 'tarde')} className="w-full px-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white focus:outline-none focus:border-red-500">
-                  <option value="manha" className="bg-[#121212] text-white">Manhã (08h às 12h)</option>
-                  <option value="tarde" className="bg-[#121212] text-white">Tarde (13h às 18h)</option>
+              <label className="block space-y-1 text-xs font-semibold text-zinc-300">Data Preferencial
+                <input type="date" min={getToday()} value={date} onChange={(event) => setDate(event.target.value)} className="mt-1 w-full px-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white focus:outline-none focus:border-red-500" />
+              </label>
+              <label className="block space-y-1 text-xs font-semibold text-zinc-300">Período
+                <select value={period} onChange={(event) => setPeriod(event.target.value as 'manha' | 'tarde')} className="mt-1 w-full px-3 py-2.5 text-sm rounded-xl bg-[#0A0A0A] border border-white/10 text-white focus:outline-none focus:border-red-500">
+                  <option value="manha">Manhã (08h às 12h)</option>
+                  <option value="tarde">Tarde (13h às 18h)</option>
                 </select>
-              </div>
+              </label>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-zinc-300">Observações adicionais (opcional)</label>
-              <textarea rows={2} maxLength={500} placeholder="Ex: Gostaria de trocar o óleo e verificar um barulho na roda dianteira." value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full p-3 text-xs rounded-xl bg-[#0A0A0A] border border-white/10 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 resize-none" />
-            </div>
+            <label className="block space-y-1 text-xs font-semibold text-zinc-300">Observações adicionais
+              <textarea rows={3} maxLength={500} placeholder="Ex: verificar barulho na roda dianteira." value={notes} onChange={(event) => setNotes(event.target.value)} className="mt-1 w-full p-3 text-xs rounded-xl bg-[#0A0A0A] border border-white/10 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 resize-none" />
+            </label>
 
-            <p className="text-[11px] leading-relaxed text-zinc-500">O envio do formulário não confirma automaticamente o horário. A equipe da oficina confirma a disponibilidade pelo WhatsApp.</p>
-
-            <button type="submit" className="w-full py-3.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-sm shadow-xl shadow-red-600/30 transition-all">Revisar solicitação</button>
+            <p className="text-[11px] leading-relaxed text-zinc-500">O formulário gera uma solicitação. O horário só é confirmado pela equipe da oficina após o envio pelo WhatsApp.</p>
+            <button type="submit" className="w-full py-3.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-sm shadow-xl shadow-red-600/30 transition-all">Gerar solicitação de agendamento</button>
           </form>
         ) : (
           <div className="p-8 text-center space-y-5">
-            <div className="w-14 h-14 rounded-full bg-red-600/20 text-red-500 flex items-center justify-center mx-auto border border-red-500/30"><CheckCircle2 className="w-8 h-8 stroke-[2.5]" /></div>
+            <div className="w-14 h-14 rounded-full bg-red-600/20 text-red-500 flex items-center justify-center mx-auto border border-red-500/30">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
             <div className="space-y-1">
-              <h4 className="font-heading text-xl font-bold text-white">Solicitação pronta para envio</h4>
-              <p className="text-xs text-zinc-300">Confira os dados e envie pelo WhatsApp para a equipe confirmar o horário do <strong className="text-red-500">{model}</strong>.</p>
+              <p className="text-xs uppercase tracking-wider font-bold text-red-500">Solicitação criada</p>
+              <h4 className="font-heading text-xl font-bold text-white">Protocolo {requestRecord.protocol}</h4>
+              <p className="text-xs text-zinc-300">Envie a solicitação no WhatsApp para a equipe confirmar o horário do <strong className="text-red-500">{model}</strong>.</p>
             </div>
             <div className="p-4 rounded-xl bg-[#0A0A0A] border border-white/10 space-y-3 text-left">
               <div className="text-xs text-zinc-300 space-y-1">
@@ -213,9 +222,13 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
                 <MessageCircle className="w-4 h-4" />
                 <span>Enviar solicitação no WhatsApp</span>
               </button>
+              <button type="button" onClick={handleCopyProtocol} className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors">
+                <Copy className="w-4 h-4" />
+                <span>{copied ? 'Protocolo copiado' : 'Copiar protocolo'}</span>
+              </button>
             </div>
             <div className="flex justify-center gap-4">
-              <button onClick={() => setSubmitted(false)} className="text-xs text-zinc-400 hover:text-white underline">Editar dados</button>
+              <button onClick={() => setRequestRecord(null)} className="text-xs text-zinc-400 hover:text-white underline">Editar dados</button>
               <button onClick={onClose} className="text-xs text-zinc-400 hover:text-white underline">Fechar</button>
             </div>
           </div>
