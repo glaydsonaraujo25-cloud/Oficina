@@ -10,6 +10,26 @@
   font-family: 'Chakra Petch', sans-serif;
 }
 
+.input-admin {
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  background: #0A0A0A;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 160ms ease;
+}
+
+.input-admin::placeholder {
+  color: #52525b;
+}
+
+.input-admin:focus {
+  border-color: #ef4444;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -28,7 +48,6 @@
   background: #dc2626;
 }
 
-/* Elegant Dark Glassmorphism & Metallic Effects */
 .glass-panel {
   background: rgba(21, 21, 21, 0.85);
   backdrop-filter: blur(16px);
@@ -67,4 +86,3 @@
 .animate-pulse-slow {
   animation: pulseSlow 3s ease-in-out infinite;
 }
-
