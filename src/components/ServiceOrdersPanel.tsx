@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Plus, Search, Trash2 } from 'lucide-react';
-import { ServiceOrderRecord, ServiceOrderStatus } from '../types';
+import { ServiceOrderItem, ServiceOrderRecord, ServiceOrderStatus } from '../types';
 import { createServiceOrder, deleteServiceOrder, getServiceOrders, updateServiceOrderStatus } from '../utils/serviceOrderStore';
 
 const statusLabels: Record<ServiceOrderStatus, string> = {
@@ -14,6 +14,8 @@ const statusLabels: Record<ServiceOrderStatus, string> = {
 };
 
 const money = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+const parseMoney = (value: string) => Number(value.replace(',', '.')) || 0;
+const newItemId = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const totalOf = (record: ServiceOrderRecord) => {
   const items = record.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
@@ -24,9 +26,11 @@ export const ServiceOrdersPanel: React.FC = () => {
   const [orders, setOrders] = useState<ServiceOrderRecord[]>([]);
   const [query, setQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [items, setItems] = useState<ServiceOrderItem[]>([]);
+  const [itemDraft, setItemDraft] = useState({ description: '', quantity: '1', unitPrice: '' });
   const [form, setForm] = useState({
     customerName: '', phone: '', vehicleBrand: '', vehicleModel: '', vehicleYear: '', plate: '', mileage: '', complaint: '', diagnosis: '',
-    itemDescription: '', itemQuantity: '1', itemPrice: '', laborValue: '', discount: '', notes: '',
+    laborValue: '', discount: '', notes: '',
   });
 
   const refresh = () => setOrders(getServiceOrders());
@@ -43,18 +47,23 @@ export const ServiceOrdersPanel: React.FC = () => {
     return orders.filter((order) => [order.number, order.customerName, order.phone, order.vehicleBrand, order.vehicleModel, order.plate].join(' ').toLowerCase().includes(q));
   }, [orders, query]);
 
+  const itemsSubtotal = useMemo(() => items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0), [items]);
+  const draftTotal = Math.max(0, itemsSubtotal + parseMoney(form.laborValue) - parseMoney(form.discount));
+
+  const addItem = () => {
+    const description = itemDraft.description.trim();
+    if (!description) return;
+    const quantity = Math.max(1, Number(itemDraft.quantity) || 1);
+    const unitPrice = Math.max(0, parseMoney(itemDraft.unitPrice));
+    setItems((current) => [...current, { id: newItemId(), description, quantity, unitPrice }]);
+    setItemDraft({ description: '', quantity: '1', unitPrice: '' });
+  };
+
+  const removeItem = (id: string) => setItems((current) => current.filter((item) => item.id !== id));
+
   const handleCreate = (event: React.FormEvent) => {
     event.preventDefault();
     if (form.customerName.trim().length < 3 || form.vehicleModel.trim().length < 2) return;
-
-    const itemPrice = Number(form.itemPrice.replace(',', '.')) || 0;
-    const itemQuantity = Number(form.itemQuantity) || 1;
-    const items = form.itemDescription.trim() ? [{
-      id: crypto.randomUUID?.() || String(Date.now()),
-      description: form.itemDescription.trim(),
-      quantity: itemQuantity,
-      unitPrice: itemPrice,
-    }] : [];
 
     createServiceOrder({
       customerName: form.customerName.trim(),
@@ -67,12 +76,14 @@ export const ServiceOrdersPanel: React.FC = () => {
       complaint: form.complaint.trim() || undefined,
       diagnosis: form.diagnosis.trim() || undefined,
       items,
-      laborValue: Number(form.laborValue.replace(',', '.')) || 0,
-      discount: Number(form.discount.replace(',', '.')) || 0,
+      laborValue: parseMoney(form.laborValue),
+      discount: parseMoney(form.discount),
       notes: form.notes.trim() || undefined,
     });
 
-    setForm({ customerName: '', phone: '', vehicleBrand: '', vehicleModel: '', vehicleYear: '', plate: '', mileage: '', complaint: '', diagnosis: '', itemDescription: '', itemQuantity: '1', itemPrice: '', laborValue: '', discount: '', notes: '' });
+    setForm({ customerName: '', phone: '', vehicleBrand: '', vehicleModel: '', vehicleYear: '', plate: '', mileage: '', complaint: '', diagnosis: '', laborValue: '', discount: '', notes: '' });
+    setItems([]);
+    setItemDraft({ description: '', quantity: '1', unitPrice: '' });
     setShowForm(false);
     refresh();
   };
@@ -107,15 +118,45 @@ export const ServiceOrdersPanel: React.FC = () => {
             <textarea rows={3} placeholder="Diagnóstico técnico" value={form.diagnosis} onChange={(e) => setForm({ ...form, diagnosis: e.target.value })} className="input-admin resize-none" />
           </div>
 
-          <div className="grid sm:grid-cols-[1fr_120px_160px] gap-3">
-            <input placeholder="Peça / serviço" value={form.itemDescription} onChange={(e) => setForm({ ...form, itemDescription: e.target.value })} className="input-admin" />
-            <input type="number" min="1" placeholder="Qtd." value={form.itemQuantity} onChange={(e) => setForm({ ...form, itemQuantity: e.target.value })} className="input-admin" />
-            <input placeholder="Valor unitário" inputMode="decimal" value={form.itemPrice} onChange={(e) => setForm({ ...form, itemPrice: e.target.value })} className="input-admin" />
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-white">Peças e serviços</h3>
+              <p className="text-xs text-zinc-500 mt-1">Adicione quantos itens forem necessários à mesma OS.</p>
+            </div>
+            <div className="grid sm:grid-cols-[1fr_100px_150px_auto] gap-3">
+              <input placeholder="Peça / serviço" value={itemDraft.description} onChange={(e) => setItemDraft({ ...itemDraft, description: e.target.value })} className="input-admin" />
+              <input type="number" min="1" placeholder="Qtd." value={itemDraft.quantity} onChange={(e) => setItemDraft({ ...itemDraft, quantity: e.target.value })} className="input-admin" />
+              <input placeholder="Valor unitário" inputMode="decimal" value={itemDraft.unitPrice} onChange={(e) => setItemDraft({ ...itemDraft, unitPrice: e.target.value })} className="input-admin" />
+              <button type="button" onClick={addItem} disabled={!itemDraft.description.trim()} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-40 text-sm font-bold text-white">
+                <Plus className="w-4 h-4" /> Adicionar
+              </button>
+            </div>
+
+            {items.length > 0 && (
+              <div className="space-y-2">
+                {items.map((item, index) => (
+                  <div key={item.id} className="grid grid-cols-[1fr_auto] sm:grid-cols-[40px_1fr_90px_130px_130px_40px] gap-2 items-center rounded-xl border border-white/5 bg-white/[0.03] p-3 text-xs">
+                    <span className="hidden sm:block text-zinc-600">#{index + 1}</span>
+                    <strong className="text-zinc-200 min-w-0 break-words">{item.description}</strong>
+                    <span className="text-zinc-400">Qtd. {item.quantity}</span>
+                    <span className="text-zinc-400">{money(item.unitPrice)}</span>
+                    <strong className="text-white">{money(item.quantity * item.unitPrice)}</strong>
+                    <button type="button" onClick={() => removeItem(item.id)} aria-label={`Remover ${item.description}`} className="p-2 rounded-lg text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                ))}
+                <div className="flex justify-end text-sm"><span className="text-zinc-500 mr-2">Subtotal dos itens:</span><strong className="text-white">{money(itemsSubtotal)}</strong></div>
+              </div>
+            )}
           </div>
 
           <div className="grid sm:grid-cols-2 gap-3">
             <input placeholder="Desconto (R$)" inputMode="decimal" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} className="input-admin" />
             <input placeholder="Observações" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="input-admin" />
+          </div>
+
+          <div className="rounded-xl border border-red-500/15 bg-red-500/5 p-4 flex flex-wrap justify-between gap-3 text-sm">
+            <span className="text-zinc-400">Itens {money(itemsSubtotal)} + mão de obra {money(parseMoney(form.laborValue))} − desconto {money(parseMoney(form.discount))}</span>
+            <strong className="text-red-400 text-base">Total: {money(draftTotal)}</strong>
           </div>
 
           <div className="flex justify-end gap-2">
@@ -141,7 +182,7 @@ export const ServiceOrdersPanel: React.FC = () => {
           {filtered.map((order) => (
             <article key={order.number} className="glass-panel border border-white/10 rounded-2xl p-5 sm:p-6">
               <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
-                <div className="space-y-4 min-w-0">
+                <div className="space-y-4 min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs text-red-400">{order.number}</span>
                     <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-300">{statusLabels[order.status]}</span>
@@ -156,6 +197,17 @@ export const ServiceOrdersPanel: React.FC = () => {
                     <div><span className="block text-zinc-500">Desconto</span><strong className="text-zinc-200">{money(order.discount)}</strong></div>
                     <div><span className="block text-zinc-500">Total</span><strong className="text-red-400 text-base">{money(totalOf(order))}</strong></div>
                   </div>
+                  {order.items.length > 0 && (
+                    <div className="border-t border-white/5 pt-4 space-y-2">
+                      <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Itens da OS ({order.items.length})</p>
+                      {order.items.map((item) => (
+                        <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/[0.03] px-3 py-2 text-xs">
+                          <span className="text-zinc-200">{item.description}</span>
+                          <span className="text-zinc-500">{item.quantity} × {money(item.unitPrice)} = <strong className="text-zinc-300">{money(item.quantity * item.unitPrice)}</strong></span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {(order.complaint || order.diagnosis) && <div className="grid sm:grid-cols-2 gap-3 text-sm border-t border-white/5 pt-4"><p className="text-zinc-400"><strong className="text-zinc-200">Reclamação:</strong> {order.complaint || '—'}</p><p className="text-zinc-400"><strong className="text-zinc-200">Diagnóstico:</strong> {order.diagnosis || '—'}</p></div>}
                 </div>
                 <div className="flex flex-col sm:flex-row xl:flex-col gap-2 xl:w-48 flex-shrink-0">
