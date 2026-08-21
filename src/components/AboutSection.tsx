@@ -5,13 +5,11 @@ import {
   Car, 
   Award, 
   CheckCircle2, 
-  Wrench, 
   Clock, 
   HeartHandshake,
   Calendar,
   Sparkles
 } from 'lucide-react';
-import { companyInfo } from '../data/mockData';
 
 interface AboutSectionProps {
   onOpenAppointment: () => void;
@@ -19,10 +17,10 @@ interface AboutSectionProps {
 
 export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenAppointment }) => {
   const stats = [
-    { value: '+12', label: 'Anos de Experiência', icon: Clock, desc: 'Tradição e confiabilidade em Samambaia' },
-    { value: '+8.500', label: 'Veículos Atendidos', icon: Car, desc: 'Manutenções executadas com sucesso' },
-    { value: '99.4%', label: 'Clientes Satisfeitos', icon: HeartHandshake, desc: 'Avaliações positivas no Google' },
-    { value: '+15', label: 'Especialistas Certificados', icon: Award, desc: 'Técnicos em constante capacitação' },
+    { value: '0', label: 'Anos de Experiência', icon: Clock, desc: 'Tradição e confiabilidade em Samambaia' },
+    { value: '0', label: 'Veículos Atendidos', icon: Car, desc: 'Manutenções executadas com sucesso' },
+    { value: '0%', label: 'Clientes Satisfeitos', icon: HeartHandshake, desc: 'Avaliações positivas no Google' },
+    { value: '0', label: 'Especialistas Certificados', icon: Award, desc: 'Técnicos em constante capacitação' },
   ];
 
   const pillars = [
@@ -34,17 +32,11 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenAppointment })
 
   return (
     <section id="sobre" className="py-20 sm:py-24 bg-[#0A0A0A] border-t border-white/5 relative overflow-hidden">
-      {/* Background decorations */}
       <div className="absolute top-0 right-1/4 w-96 h-96 bg-red-600/5 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        
-        {/* Top Grid: Text & Media */}
         <div className="grid lg:grid-cols-12 gap-12 lg:gap-10 items-center">
-          
-          {/* Left Column: Story, Vision, and Commitment */}
           <div className="lg:col-span-6 space-y-6">
-            
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-600/10 border border-red-500/20 text-red-500 text-xs font-semibold uppercase tracking-wider">
               <Users className="w-3.5 h-3.5" />
               <span>Quem Somos</span>
@@ -63,7 +55,6 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenAppointment })
               </p>
             </div>
 
-            {/* Core Values / Commitments */}
             <div className="grid sm:grid-cols-2 gap-3 pt-2">
               {pillars.map((pillar, idx) => (
                 <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-[#121212] border border-white/5">
@@ -73,7 +64,6 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenAppointment })
               ))}
             </div>
 
-            {/* Action CTA */}
             <div className="pt-2">
               <button
                 onClick={onOpenAppointment}
@@ -83,14 +73,10 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenAppointment })
                 <span>Agendar uma Visita à Oficina</span>
               </button>
             </div>
-
           </div>
 
-          {/* Right Column: Composite Photo Grid & Trust Badge */}
           <div className="lg:col-span-6 relative">
             <div className="grid grid-cols-2 gap-4">
-              
-              {/* Photo 1: Workshop bay / Diagnostics */}
               <div className="space-y-4">
                 <div className="rounded-2xl overflow-hidden border border-white/10 shadow-xl h-48 sm:h-64 relative group">
                   <img
@@ -116,7 +102,6 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenAppointment })
                 </div>
               </div>
 
-              {/* Photo 2: Under-the-hood engine precision */}
               <div className="space-y-4 pt-6">
                 <div className="p-4 rounded-2xl bg-[#141414] border border-white/10 space-y-1">
                   <div className="flex items-center gap-2 text-emerald-400">
@@ -141,13 +126,10 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenAppointment })
                   </span>
                 </div>
               </div>
-
             </div>
           </div>
-
         </div>
 
-        {/* Bottom Statistics Cards (Editable & Responsive) */}
         <div className="mt-16 pt-12 border-t border-white/10 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {stats.map((stat, idx) => {
             const Icon = stat.icon;
@@ -172,7 +154,6 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onOpenAppointment })
             );
           })}
         </div>
-
       </div>
     </section>
   );
