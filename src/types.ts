@@ -74,6 +74,27 @@ export interface QuoteFormData {
   preferredPeriod: 'manha' | 'tarde' | 'indiferente';
 }
 
+export type CustomerRequestType = 'quote' | 'appointment';
+export type CustomerRequestStatus = 'new' | 'sent-whatsapp' | 'confirmed' | 'cancelled';
+
+export interface CustomerRequestRecord {
+  protocol: string;
+  type: CustomerRequestType;
+  status: CustomerRequestStatus;
+  createdAt: string;
+  name: string;
+  phone: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  vehicleYear?: string;
+  serviceId: string;
+  serviceName: string;
+  problemDescription?: string;
+  preferredDate?: string;
+  preferredPeriod?: string;
+  notes?: string;
+}
+
 export interface CompanyInfo {
   name: string;
   slogan: string;
